@@ -2,10 +2,16 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-
 	"gee-web/src/nathan.com/gee-web/gee"
+	"html/template"
+	"net/http"
+	"time"
 )
+
+func FormatAsDate(t time.Time) string {
+	year, month, day := t.Date()
+	return fmt.Sprintf("%d-%02d-%02d", year, month, day)
+}
 
 func main() {
 	//app := gee.New()
@@ -14,14 +20,14 @@ func main() {
 	//app.Apply(gee.Logger())
 
 	// add global router
-	app.GET("/index", func(c *gee.Context) {
-		c.HTML(http.StatusOK, "<h1>Index Page</h1>")
-	})
+	//app.GET("/index", func(c *gee.Context) {
+	//	c.SendHTMLResponse(http.StatusOK, "<h1>Index Page</h1>")
+	//})
 
 	// panic
 	app.GET("/panic", func(c *gee.Context) {
 		names := []string{"nathan"}
-		c.String(http.StatusOK, names[100])
+		c.SendStringResponse(http.StatusOK, names[100])
 	})
 
 	// create group v1
@@ -30,11 +36,11 @@ func main() {
 		v1.GET("/hello", func(c *gee.Context) {
 			// expect /hello?name=nathan
 			data := fmt.Sprintf("hello %s, you're at %s\n", c.GetQueryValue("name"), c.Path)
-			c.String(http.StatusOK, data)
+			c.SendStringResponse(http.StatusOK, data)
 		})
 
 		v1.POST("/login", func(c *gee.Context) {
-			c.Json(200, gee.H{
+			c.SendJsonResponse(200, gee.H{
 				"username": c.GetPostFormValue("username"),
 				"password": c.GetPostFormValue("password"),
 			})
@@ -49,13 +55,29 @@ func main() {
 		v2.GET("/hello/:name", func(c *gee.Context) {
 			// except /hello/nathan
 			data := fmt.Sprintf("hello %s, you're at %s\n", c.GetParamValue("name"), c.Path)
-			c.String(http.StatusOK, data)
+			c.SendStringResponse(http.StatusOK, data)
 		})
 
 		v2.GET("/assets/*filepath", func(c *gee.Context) {
-			c.Json(http.StatusOK, gee.H{"filepath": c.GetParamValue("filepath")})
+			c.SendJsonResponse(http.StatusOK, gee.H{"filepath": c.GetParamValue("filepath")})
 		})
 	}
+
+	/**
+	用户访问localhost:9999/assets/js/nathan.js，最终返回/usr/blog/static/js/nathan.js
+	*/
+	app.Static("/assets", "/usr/blog/static")
+	// 或相对路径 r.Static("/assets", "./static")
+
+	app.SetFuncMap(template.FuncMap{
+		"FormatAsDate": FormatAsDate,
+	})
+	app.LoadHTMLGlob("templates/*")
+	app.Static("/assets", "./static")
+
+	app.GET("/", func(c *gee.Context) {
+		c.SendHTMLResponse(http.StatusOK, "css.tmpl", nil)
+	})
 
 	app.Run(":9999")
 }
